@@ -104,7 +104,7 @@
                 <configuration>
                     <archive>
                         <manifest>
-                            <mainClass>main.ProjectMain</mainClass>                            
+                            <mainClass>com.compomics.main.ProjectMain</mainClass>                            
                             <addClasspath>true</addClasspath>
                             <classpathPrefix>lib</classpathPrefix>
                         </manifest>

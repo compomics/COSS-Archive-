@@ -42,8 +42,8 @@ import javax.swing.JList;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
-import matching.Matching;
-import matching.UseMsRoben;
+import com.compomics.matching.Matching;
+import com.compomics.matching.UseMsRoben;
 import org.jfree.util.Log;
 
 /**
@@ -301,7 +301,7 @@ public class MainFrameController implements UpdateListener {
                         try {
 
                         } catch (Exception ex) {
-                            java.util.logging.Logger.getLogger(main.ProjectMain.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
+                            java.util.logging.Logger.getLogger(com.compomics.main.ProjectMain.class.getName()).log(java.util.logging.Level.SEVERE, null, ex);
                         }
 
                     }

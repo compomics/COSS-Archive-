@@ -1,8 +1,8 @@
 com.compomics.coss.Controller
 com.compomics.coss.Model
 com.compomics.coss.View
-featureExtraction
-main
-matching
-preprocessing
+com.compomics.featureExtraction
+com.compomics.main
+com.compomics.matching
+com.compomics.preprocessing
 util
