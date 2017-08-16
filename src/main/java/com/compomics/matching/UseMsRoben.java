@@ -5,6 +5,7 @@
  */
 package com.compomics.matching;
 
+
 import com.compomics.util.experiment.massspectrometry.MSnSpectrum;
 import com.compomics.util.experiment.massspectrometry.Peak;
 import com.compomics.featureExtraction.DivideAndTopNPeaks;
@@ -19,7 +20,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.math3.util.Precision;
 import com.compomics.coss.Controller.UpdateListener;
-import java.util.Collections;
+
 
 /**
  * c
@@ -27,6 +28,8 @@ import java.util.Collections;
  * @author Genet
  */
 public class UseMsRoben extends Matching {
+    
+    
 
     private double msRobinScore = 0,
             massWindow = 100;
@@ -55,11 +58,12 @@ public class UseMsRoben extends Matching {
     }
 
     @Override
-    public ArrayList compare(ArrayList<MSnSpectrum> spa, ArrayList<MSnSpectrum> spb) {
+    public ArrayList compare(ArrayList<MSnSpectrum> spa, ArrayList<MSnSpectrum> spb, org.apache.log4j.Logger log ) {
         specA = spa;
         specB = spb;
+        int specNum=1;
 
-        ExecutorService executor = Executors.newFixedThreadPool(4);
+        ExecutorService executor = Executors.newFixedThreadPool(5);
         List<Future> futureList = new ArrayList<>();
 
         int specPos = 1;
@@ -80,16 +84,19 @@ public class UseMsRoben extends Matching {
 
                     //wait till f is completed
                 }
+                
 
                 simResult.add(f.get());
                 taskCompleted++;
                 this.listener.update((double) taskCompleted / numTasks);
+                log.info("Spectrum " + specNum + " matching completed");
+                specNum++;
                
 
             } catch (InterruptedException ex) {
-                Logger.getLogger(UseMsRoben.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(UseMsRoben.class.getName()).log(Level.SEVERE, "IterruptedExeption", ex + "Interrrupted Exception");
             } catch (ExecutionException ex) {
-                Logger.getLogger(UseMsRoben.class.getName()).log(Level.SEVERE, null, ex + " from useMsRobin");
+                Logger.getLogger(UseMsRoben.class.getName()).log(Level.SEVERE, "Execution Exception", ex + " from useMsRobin");
             }
         }
 

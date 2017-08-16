@@ -11,8 +11,9 @@ import com.compomics.util.gui.waiting.waitinghandlers.WaitingHandlerCLIImpl;
 import java.io.File;
 import java.util.ArrayList;
 
+
 /**
- *
+ *ReadSpectralData class take file as an argument and read the spectrum of the file using CompOimcs spectrum factory
  * @author Genet
  */
 public class ReadSpectralData {
@@ -29,8 +30,8 @@ public class ReadSpectralData {
     public ArrayList<MSnSpectrum> readSpectra(File file) throws Exception {
 
         fct.clearFactory();
-        
-        fct.addSpectra(file, new WaitingHandlerCLIImpl());
+        WaitingHandlerCLIImpl waitingHandlerCLIImpl = new WaitingHandlerCLIImpl();
+        fct.addSpectra(file, waitingHandlerCLIImpl);
         
         this.spectra.clear();
         for (String title : fct.getSpectrumTitles(file.getName())) {

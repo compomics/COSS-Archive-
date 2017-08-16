@@ -5,11 +5,10 @@
  */
 package com.compomics.coss.Controller;
 
+import com.compomics.coss.Model.ConfigData;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-import java.awt.event.ItemEvent;
-import java.awt.event.ItemListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.util.ArrayList;
@@ -25,25 +24,25 @@ import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.apache.log4j.Priority;
-import com.compomics.coss.View.MainFrame;
-import com.compomics.coss.Model.ConfigData;
+import com.compomics.coss.View.SettingsView;
+import com.compomics.coss.View.ProgressView;
+import com.compomics.coss.View.ResultView;
+import com.compomics.coss.Model.ConfigHolder;
 import com.compomics.coss.Model.SpectralData;
 import com.compomics.util.experiment.massspectrometry.MSnSpectrum;
 import com.compomics.util.gui.spectrum.SpectrumPanel;
 import java.awt.Color;
-import java.awt.Toolkit;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Iterator;
-import javax.swing.DefaultListModel;
-import javax.swing.JList;
 import javax.swing.SwingUtilities;
 import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import com.compomics.matching.Matching;
 import com.compomics.matching.UseMsRoben;
+import javax.swing.table.DefaultTableModel;
 import org.jfree.util.Log;
 
 /**
@@ -58,16 +57,24 @@ public class MainFrameController implements UpdateListener {
      * Model fields.
      */
     private SwingWorkerThread workerThread;
-    DefaultListModel model;
+ 
+    DefaultTableModel tblModelResult;
+    DefaultTableModel tblModelTarget;
     ArrayList res;
     SpectralData d;
+    ConfigData cf_data = new ConfigData();
 
     /**
      * The views of this controller.
      */
-    private final MainFrame mainFrame = new MainFrame();
-    private ConfigData config = new ConfigData();
+    private final SettingsView settingsView = new SettingsView();
+    private final ProgressView progressView = new ProgressView();
+    private final ResultView resultView = new ResultView();
+
+    // private ConfigHolder config = new ConfigHolder();
     Matching matching;
+
+    private int targSpectrumIndex, bestResultIndex;
 
     /**
      * Init the controller.
@@ -77,7 +84,7 @@ public class MainFrameController implements UpdateListener {
         matching = new UseMsRoben(this);
         // add gui appender
         LogTextAreaAppender logTextAreaAppender = new LogTextAreaAppender();
-        logTextAreaAppender.setLogArea(mainFrame);
+        logTextAreaAppender.setLogArea(progressView);
 
         logTextAreaAppender.setThreshold(Priority.INFO);
         logTextAreaAppender.setImmediateFlush(true);
@@ -85,176 +92,121 @@ public class MainFrameController implements UpdateListener {
         layout.setConversionPattern("%d{yyyy-MM-dd HH:mm:ss} - %m%n");
         logTextAreaAppender.setLayout(layout);
 
-        JFileChooser fileChooser = new JFileChooser();
+        JFileChooser fileChooser = new JFileChooser("D:/");
         fileChooser.setMultiSelectionEnabled(false);
         fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
-        fileChooser.setAcceptAllFileFilterUsed(false);
-
-//        mainFrame.getTxtTargetSpectra().setText("D:/specA/SpecA.mgf");
-//        mainFrame.getTxtDBSpectra().setText("D:/specB/SpecB.mgf");
+        fileChooser.setAcceptAllFileFilterUsed(false); 
         
-        mainFrame.getTxtFragmentTolerance().setText(Integer.toString(6));
-        mainFrame.getTxtPrecursorTolerance().setText(Integer.toString(20));
-        mainFrame.getTxtPrecursorCharge().setText(Integer.toString(3));
-        config.setTargetSpecFile(mainFrame.getTxtTargetSpectra().getText());
-        config.setDBSpecFile(mainFrame.getTxtDBSpectra().getText());
-        model = new DefaultListModel();
-        mainFrame.getLstTargetSpec().setModel(model);
+        
 
-//        FileNameExtensionFilter filter = new FileNameExtensionFilter("MGF files", ".mgf");
-//        fileChooser.setFileFilter(filter);
+        settingsView.getTxtTargetSpectra().setText("D:/specA/SpecA.msp");
+        settingsView.getTxtDBSpectra().setText("D:/specB/SpecB.msp");
+
+        settingsView.getTxtFragmentTolerance().setText(Integer.toString(6));
+        settingsView.getTxtPrecursorTolerance().setText(Integer.toString(20));
+        settingsView.getTxtPrecursorCharge().setText(Integer.toString(3));
+        cf_data.setTargetSpecFile(settingsView.getTxtTargetSpectra().getText());
+        cf_data.setDBSpecFile(settingsView.getTxtDBSpectra().getText());
+     
+        
+        
+        final String[] colNamesRes = {"No.", "ID","Name/Title", "M/Z","Charge", "No. Peaks","Score", "Confidence(%)"};
+        final String[] colNamesTar = {"No.", "ID","Name/Title", "M/Z","Charge", "No. Peaks"};
+        tblModelResult=new DefaultTableModel(colNamesRes, 0);
+        tblModelTarget=new DefaultTableModel(colNamesTar, 0);
+        
+        resultView.getTblTargetSpec().setModel(tblModelTarget);
+        resultView.getTblBestMatch().setModel(tblModelResult);
+        
+        resultView.getTblTargetSpec().setRowSelectionAllowed(true);
+        resultView.getTblTargetSpec().setColumnSelectionAllowed(false);
+        
+        resultView.getTblBestMatch().setRowSelectionAllowed(true);
+        resultView.getTblBestMatch().setColumnSelectionAllowed(false);
+        
+
+
         LOG.addAppender(logTextAreaAppender);
         LOG.setLevel((Level) Level.INFO);
 
-        //<editor-fold defaultstate="collapsed" desc=" Control Action Listeners ">
-        mainFrame.getBtnTargetSpectra().addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
 
-                int returnVal = fileChooser.showOpenDialog(mainFrame);
-                if (returnVal == JFileChooser.APPROVE_OPTION) {
-                    //show spectra directory path in text field
-
-                    String filename=fileChooser.getSelectedFile().getAbsolutePath().replace('\\','/');              
-                    mainFrame.getTxtTargetSpectra().setText(filename);
-                    config.setTargetSpecFile(mainFrame.getTxtTargetSpectra().getText());
-
-                }
-            }
-        });
-
-        mainFrame.getBtnDBSpectra().addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                //in response to the button click, show open dialog
-
-                int returnVal = fileChooser.showOpenDialog(mainFrame);
-                if (returnVal == JFileChooser.APPROVE_OPTION) {
-                   
-                    String filename=fileChooser.getSelectedFile().getAbsolutePath().replace('\\','/');         
-                    
-                    mainFrame.getTxtDBSpectra().setText(filename);
-                    config.setDBSpecFile(mainFrame.getTxtDBSpectra().getText());
-                }
-            }
-        });
-
-        mainFrame.getChkRemovePrecursor().addItemListener(new ItemListener() {
-
-            @Override
-            public void itemStateChanged(ItemEvent e) {
-
-                if (mainFrame.getChkFilter().isSelected()) {
-                    mainFrame.getlblCutoff().enableInputMethods(true);
-                    mainFrame.getTxtCutOff().enableInputMethods(true);
-                } else {
-                    mainFrame.getlblCutoff().enableInputMethods(false);
-                    mainFrame.getTxtCutOff().enableInputMethods(false);
-                }
-            }
-        });
-
-        mainFrame.getCmbAlgorithmType().addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                config.setMatchingAlgorithm(mainFrame.getCmbAlgorithmType().getSelectedItem().toString());
-            }
-        });
-
-        mainFrame.getTxtTargetSpectra().addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String filename = mainFrame.getTxtTargetSpectra().getText();
-                if (filename != "") {
-                    config.setTargetSpecFile(filename);
-
-                }
-
-            }
-        });
-
-        mainFrame.getTxtDBSpectra().addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                String filename = mainFrame.getTxtDBSpectra().getText();
-                if (filename != "") {
-                    config.setTargetSpecFile(filename);
-
-                }
-            }
-        });
-
-        mainFrame.getTxtPrecursorTolerance().addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                double precTol = Double.valueOf(mainFrame.getTxtPrecursorTolerance().getText());
-                if (precTol > 0) {
-                    config.setPrecTol(precTol);
-
-                }
-            }
-        });
-
-        mainFrame.getTxtFragmentTolerance().addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                double fragTol = Double.valueOf(mainFrame.getTxtFragmentTolerance().getText());
-                if (fragTol > 0) {
-                    config.setfragTol(fragTol);
-
-                }
-            }
-        });
-
-        mainFrame.getTxtPrecursorCharge().addActionListener(new ActionListener() {
-            @Override
-            public void actionPerformed(ActionEvent e) {
-                int precCharg = Integer.valueOf(mainFrame.getTxtPrecursorCharge().getText());
-                if (precCharg > 0) {
-                    config.setMaxPrecursorCharg(precCharg);
-
-                }
-            }
-        });
-
-        mainFrame.getLstTargetSpec().addListSelectionListener(new ListSelectionListener() {
+        resultView.getTblTargetSpec().getSelectionModel().addListSelectionListener(new ListSelectionListener()  {
             @Override
             public void valueChanged(ListSelectionEvent lse) {
-                if (!lse.getValueIsAdjusting()) {
-                    JList source = (JList) lse.getSource();
-                    int indx = source.getSelectedIndex();
-                    displayResult(indx);
+                if (!lse.getValueIsAdjusting()) {                   
+                    targSpectrumIndex = resultView.getTblTargetSpec().getSelectedRow();
+                    fillResultListControl(targSpectrumIndex);
+                    mapIndex(0);
+
+                    displayResult();
 
                 }
 
             }
         });
+        
+        
+        
+        resultView.getTblBestMatch().getSelectionModel().addListSelectionListener(new ListSelectionListener() {
+           
+            @Override
+            public void valueChanged(ListSelectionEvent lse) {
+                int index = resultView.getTblBestMatch().getSelectedRow();
+                mapIndex(index);
+                displayResult();
+            }
+        });
 
-        mainFrame.getMnuSaveResult().addActionListener(new ActionListener() {
+
+
+        settingsView.getBtnSave().addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent ae) {
+
+                List<String> validationMessages = validateInput();
+                if (!validationMessages.isEmpty()) {
+                    StringBuilder message = new StringBuilder();
+                    for (String validationMessage : validationMessages) {
+                        message.append(validationMessage).append(System.lineSeparator());
+                    }
+                    showMessageDialog("Validation errors", message.toString(), JOptionPane.WARNING_MESSAGE);
+                } else {
+
+                    ConfigHolder.getInstance().setProperty("matching.algorithm", settingsView.getCmbAlgorithmType().getSelectedIndex());
+                    ConfigHolder.getInstance().setProperty("fragment.tolerance",  settingsView.getTxtFragmentTolerance().getText());
+                    ConfigHolder.getInstance().setProperty("precursor.tolerance", settingsView.getTxtPrecursorTolerance().getText());
+                    ConfigHolder.getInstance().setProperty("max.charge", settingsView.getTxtPrecursorCharge().getText());
+                    ConfigHolder.getInstance().setProperty("db.spectra.path", settingsView.getTxtDBSpectra().getText());
+                    ConfigHolder.getInstance().setProperty("target.spectra", settingsView.getTxtTargetSpectra().getText());
+                   
+                }
+
+            }
+        });
+        resultView.getMnuSaveResult().addActionListener(new ActionListener() {
             public void actionPerformed(ActionEvent ev) {
 
                 JFileChooser fileChooser = new JFileChooser();
                 fileChooser.setDialogTitle("Specify a file to save");
-                
-                int userSelection = fileChooser.showSaveDialog(mainFrame);
-                
+
+                int userSelection = fileChooser.showSaveDialog(resultView);
 
                 if (userSelection == JFileChooser.APPROVE_OPTION) {
-                    File filename=fileChooser.getSelectedFile();
-                    BufferedWriter writer=null;
-                    try {
+                        File filename = fileChooser.getSelectedFile();
+                        BufferedWriter writer = null;
+                        try {
 
-                        if (res != null && res.size() > 0) {
-                            Iterator itr = res.iterator();
-                            writer = new BufferedWriter(new FileWriter(filename));
-                            while (itr.hasNext()) {
-                                writer.write(itr.next().toString());
-                                writer.newLine();
+                            if (res != null && res.size() > 0) {
+                                Iterator itr = res.iterator();
+                                writer = new BufferedWriter(new FileWriter(filename));
+                                while (itr.hasNext()) {
+                                    writer.write(itr.next().toString());
+                                    writer.newLine();
 
+                                }
+                            } else {
+                                Log.info("No comparison result.");
                             }
-                        } else {
-                            Log.info("No comparison result.");
-                        }
 
                     } catch (IOException e) {
 
@@ -273,13 +225,14 @@ public class MainFrameController implements UpdateListener {
         }
         );
 
-        mainFrame.getBtnStartSearching()
+        settingsView.getBtnStartSearching()
                 .addActionListener(new ActionListener() {
                     @Override
-                    public void actionPerformed(ActionEvent e
-                    ) {
+                    public void actionPerformed(ActionEvent e) {
                         //check for input validation and display if one or more infalid value found
 
+                        settingsView.dispose();
+                        progressView.setVisible(true);
                         List<String> validationMessages = validateInput();
                         if (!validationMessages.isEmpty()) {
                             StringBuilder message = new StringBuilder();
@@ -288,10 +241,10 @@ public class MainFrameController implements UpdateListener {
                             }
                             showMessageDialog("Validation errors", message.toString(), JOptionPane.WARNING_MESSAGE);
                         } else {
-                    mainFrame.getPrgSearchProgress().setValue(0);
-                    mainFrame.getlblProgress().setText(Integer.toString(0)+"%");
-                    mainFrame.getSpltPanel().removeAll();
-                    
+                            LoadData();
+                            progressView.getPrgSearchProgress().setValue(0);
+                            progressView.getlblProgress().setText(Integer.toString(0) + "%");
+                            resultView.getSpltPanel().removeAll();
 
                             workerThread = new SwingWorkerThread();
                             workerThread.execute();
@@ -308,12 +261,50 @@ public class MainFrameController implements UpdateListener {
                 }
                 );
 
-        mainFrame.addWindowListener(
-                new WindowAdapter() {
+        settingsView.addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(final WindowEvent we
             ) {
-                System.exit(0);
+                //System.exit(0);
+
+                if (JOptionPane.showConfirmDialog(settingsView,
+                        "Are you sure to close this window?", "Really Closing?",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION) {
+                    System.exit(0);
+                }
+            }
+        }
+        );
+
+        settingsView.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(final WindowEvent we
+            ) {
+                //System.exit(0);
+
+                if (JOptionPane.showConfirmDialog(settingsView,
+                        "Are you sure to close this window?", "Really Closing?",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION) {
+                    System.exit(0);
+                }
+            }
+        }
+        );
+
+        resultView.addWindowListener(new WindowAdapter() {
+            @Override
+            public void windowClosing(final WindowEvent we
+            ) {
+                //System.exit(0);
+
+                if (JOptionPane.showConfirmDialog(resultView,
+                        "Are you sure to close this window?", "Really Closing?",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE) == JOptionPane.YES_OPTION) {
+                    System.exit(0);
+                }
             }
         }
         );
@@ -326,11 +317,32 @@ public class MainFrameController implements UpdateListener {
      */
     public void showMainFrame() {
 
-        Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        mainFrame.setBounds(0, 0, screenSize.width, screenSize.height - 15);
-        mainFrame.setVisible(true);
+        //Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+        // mainFrame.setBounds(0, 0, screenSize.width, screenSize.height - 15);
+        settingsView.setVisible(true);
     }
 
+    
+      /**
+     * Read user input from GUI and copy to configdata object
+     *
+     */
+    
+    private void LoadData()
+    {
+        cf_data.setDBSpecFile(settingsView.getTxtDBSpectra().getText());
+        cf_data.setTargetSpecFile(settingsView.getTxtTargetSpectra().getText());
+        cf_data.setMatchingAlgorithm(settingsView.getCmbAlgorithmType().getSelectedIndex());
+        cf_data.setMaxPrecursorCharg(Integer.parseInt(settingsView.getTxtPrecursorCharge().getText()));
+        cf_data.setPrecTol(Double.parseDouble(settingsView.getTxtPrecursorTolerance().getText()));
+        cf_data.setfragTol(Double.parseDouble(settingsView.getTxtFragmentTolerance().getText()));
+        
+        
+    }
+    
+    
+    
+    
     /**
      * Validate the user input and return a list of validation messages if input
      * value is not the right format.
@@ -339,23 +351,25 @@ public class MainFrameController implements UpdateListener {
      */
     private List<String> validateInput() {
         List<String> validationMessages = new ArrayList<>();
+        String fileExtnDB=settingsView.getTxtDBSpectra().getText();
+        String fileExtnTar=settingsView.getTxtDBSpectra().getText();
 
-        if (mainFrame.getTxtTargetSpectra().getText().isEmpty()) {
+        if (settingsView.getTxtTargetSpectra().getText().isEmpty()) {
             validationMessages.add("Please provide a spectra input directory.");
-        } else if (!mainFrame.getTxtTargetSpectra().getText().endsWith(".mgf")) {
+        } else if (!fileExtnTar.endsWith(".mgf") && !fileExtnTar.endsWith(".msp")) {
             validationMessages.add(" Targer Spectra file typenot valid");
         }
-        if (mainFrame.getTxtDBSpectra().getText().isEmpty()) {
+        if (settingsView.getTxtDBSpectra().getText().isEmpty()) {
             validationMessages.add("Please provide a comparison spectra input directory.");
-        } else if (!mainFrame.getTxtDBSpectra().getText().endsWith(".mgf")) {
+        } else if (!fileExtnDB.endsWith(".mgf") && !fileExtnDB.endsWith(".msp")) {
             validationMessages.add(" Data Base Spectra file typenot valid");
         }
 
-        if (mainFrame.getTxtPrecursorTolerance().getText().isEmpty()) {
+        if (settingsView.getTxtPrecursorTolerance().getText().isEmpty()) {
             validationMessages.add("Please provide a precursor tolerance value.");
         } else {
             try {
-                Double tolerance = Double.valueOf(mainFrame.getTxtPrecursorTolerance().getText());
+                Double tolerance = Double.valueOf(settingsView.getTxtPrecursorTolerance().getText());
                 if (tolerance < 0.0) {
                     validationMessages.add("Please provide a positive precursor tolerance value.");
                 }
@@ -363,11 +377,11 @@ public class MainFrameController implements UpdateListener {
                 validationMessages.add("Please provide a numeric precursor tolerance value.");
             }
         }
-        if (mainFrame.getTxtPrecursorCharge().getText().isEmpty()) {
+        if (settingsView.getTxtPrecursorCharge().getText().isEmpty()) {
             validationMessages.add("Please provide a maximum precursor charge value in both data sets.");
         } else {
             try {
-                Double maxCharge = Double.valueOf(mainFrame.getTxtPrecursorCharge().getText());
+                Double maxCharge = Double.valueOf(settingsView.getTxtPrecursorCharge().getText());
                 if (maxCharge < 0.0) {
                     validationMessages.add("Please provide a maximum precursor charge value.");
                 }
@@ -375,11 +389,11 @@ public class MainFrameController implements UpdateListener {
                 validationMessages.add("Please provide a numeric maximum precursor charge value.");
             }
         }
-        if (mainFrame.getTxtFragmentTolerance().getText().isEmpty()) {
+        if (settingsView.getTxtFragmentTolerance().getText().isEmpty()) {
             validationMessages.add("Please provide a fragment tolerance value.");
         } else {
             try {
-                Double tolerance = Double.valueOf(mainFrame.getTxtFragmentTolerance().getText());
+                Double tolerance = Double.valueOf(settingsView.getTxtFragmentTolerance().getText());
                 if (tolerance < 0.0) {
                     validationMessages.add("Please provide a positive fragment tolerance value.");
                 }
@@ -388,12 +402,12 @@ public class MainFrameController implements UpdateListener {
             }
         }
 
-        if (mainFrame.getChkFilter().isSelected()) {
-            if (mainFrame.getTxtCutOff().getText().isEmpty()) {
+        if (settingsView.getChkFilter().isSelected()) {
+            if (settingsView.getTxtCutOff().getText().isEmpty()) {
                 validationMessages.add("Please a provide peak cutoff number when choosing the TopN intense peak selection filter.");
             } else {
                 try {
-                    Integer number = Integer.valueOf(mainFrame.getTxtCutOff().getText());
+                    Integer number = Integer.valueOf(settingsView.getTxtCutOff().getText());
                     if (number < 0) {
                         validationMessages.add("Please provide a positive peak cutoff number value.");
                     }
@@ -405,6 +419,8 @@ public class MainFrameController implements UpdateListener {
 
         return validationMessages;
     }
+    
+    
 
     /**
      * Shows a message dialog.
@@ -424,86 +440,90 @@ public class MainFrameController implements UpdateListener {
         textArea.setLineWrap(true);
         textArea.setWrapStyleWord(true);
 
-        JOptionPane.showMessageDialog(mainFrame.getContentPane(), scrollPane, title, messageType);
+        JOptionPane.showMessageDialog(settingsView.getContentPane(), scrollPane, title, messageType);
     }
 
-    private void displayResult(int targSpectrum) {
+    private void mapIndex(int index) {
 
-        //Graphic Result Display
-        //ReadSpectralData readSpectralData = new ReadSpectralData();
-        //config.setDBSpecFile("D:/specA/SpecA.mgf");
+        double val = 0;
+        String result = res.get(targSpectrumIndex).toString();
+        result = result.substring(1, result.length() - 1);
+        String[] s = result.split(", ");
+
+        val = Double.parseDouble(s[6 + index]);
+        bestResultIndex = (int) val;
+    }
+
+    private void displayResult() {
+
         try {
-            String result = res.get(targSpectrum).toString();
-            result = result.substring(1, result.length() - 1);
 
-            String[] s = result.split(", ");
-            double val = Double.parseDouble(s[6]);
-            int pos = (int) val;
+            this.resultView.getSpltPanel().removeAll();
 
-            mainFrame.getSpltPanel().removeAll();
-            //readSpectralData.readSpectra(config.getDBSpecFile());
-            SpectrumPanel specPanel = new SpectrumPanel(d.getSpectra1().get(targSpectrum).getMzValuesAsArray(), d.getSpectra1().get(targSpectrum).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName());
+            SpectrumPanel specPanel = new SpectrumPanel(d.getSpectra1().get(targSpectrumIndex).getMzValuesAsArray(), d.getSpectra1().get(targSpectrumIndex).getIntensityValuesAsArray(), 500, "+2", cf_data.getDBSpecFile().getName());
 
-            specPanel.addMirroredSpectrum(d.getSpectra2().get(pos).getMzValuesAsArray(), d.getSpectra2().get(pos).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName(), false, Color.blue, Color.blue);
-            mainFrame.getSpltPanel().add(specPanel);
-
-            val = Double.parseDouble(s[7]);
-            pos = (int) val;
-            SpectrumPanel specPanel2 = new SpectrumPanel(d.getSpectra1().get(targSpectrum).getMzValuesAsArray(), d.getSpectra1().get(targSpectrum).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName());
-
-            specPanel2.addMirroredSpectrum(d.getSpectra2().get(pos).getMzValuesAsArray(), d.getSpectra2().get(pos).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName(), false, Color.blue, Color.blue);
-            mainFrame.getSpltPanel().add(specPanel2);
-
-            val = Double.parseDouble(s[8]);
-            pos = (int) val;
-            SpectrumPanel specPanel3 = new SpectrumPanel(d.getSpectra1().get(targSpectrum).getMzValuesAsArray(), d.getSpectra1().get(targSpectrum).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName());
-
-            specPanel3.addMirroredSpectrum(d.getSpectra2().get(pos).getMzValuesAsArray(), d.getSpectra2().get(pos).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName(), false, Color.blue, Color.blue);
-            mainFrame.getSpltPanel().add(specPanel3);
-
-            val = Double.parseDouble(s[9]);
-            pos = (int) val;
-            SpectrumPanel specPanel4 = new SpectrumPanel(d.getSpectra1().get(targSpectrum).getMzValuesAsArray(), d.getSpectra1().get(targSpectrum).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName());
-
-            specPanel4.addMirroredSpectrum(d.getSpectra2().get(pos).getMzValuesAsArray(), d.getSpectra2().get(pos).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName(), false, Color.blue, Color.blue);
-            mainFrame.getSpltPanel().add(specPanel4);
-
-            val = Double.parseDouble(s[10]);
-            pos = (int) val;
-            SpectrumPanel specPanel5 = new SpectrumPanel(d.getSpectra1().get(targSpectrum).getMzValuesAsArray(), d.getSpectra1().get(targSpectrum).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName());
-
-            specPanel5.addMirroredSpectrum(d.getSpectra2().get(pos).getMzValuesAsArray(), d.getSpectra2().get(pos).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName(), false, Color.blue, Color.blue);
-            mainFrame.getSpltPanel().add(specPanel5);
-
-            val = Double.parseDouble(s[11]);
-            pos = (int) val;
-            SpectrumPanel specPanel6 = new SpectrumPanel(d.getSpectra1().get(targSpectrum).getMzValuesAsArray(), d.getSpectra1().get(targSpectrum).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName());
-
-            specPanel6.addMirroredSpectrum(d.getSpectra2().get(pos).getMzValuesAsArray(), d.getSpectra2().get(pos).getIntensityValuesAsArray(), 500, "+2", config.getDBSpecFile().getName(), false, Color.blue, Color.blue);
-            mainFrame.getSpltPanel().add(specPanel6);
+            specPanel.addMirroredSpectrum(d.getSpectra2().get(bestResultIndex).getMzValuesAsArray(), d.getSpectra2().get(bestResultIndex).getIntensityValuesAsArray(), 500, "+2", cf_data.getDBSpecFile().getName(), false, Color.blue, Color.blue);
+            resultView.getSpltPanel().add(specPanel);
 
         } catch (Exception exception) {
             LOG.error(exception);
         }
 
-        mainFrame.getSpltPanel().revalidate();
-        mainFrame.getSpltPanel().repaint();
+        resultView.getSpltPanel().revalidate();
+        resultView.getSpltPanel().repaint();
     }
 
-    private void fillTargetSpectrumList() {
+    private void fillTargetListControl() {
 
-        model.clear();
+        tblModelTarget.setRowCount(0);
         int i, size = d.getSpectra1().size();
-        String name;
-        int indxScan;
-        int lenthofString;
+        //String name;
+
+        Object[][] rows=new Object[size][6];
         for (i = 0; i < size; i++) {
-            name = d.getSpectra1().get(i).getSpectrumTitle();
-            lenthofString = name.length();
-            indxScan = name.indexOf("scan");
-            name = name.substring(indxScan, lenthofString - 1);
-            model.addElement(name);
+           // name = d.getSpectra1().get(i).getSpectrumTitle();
+
+            rows[i][0]=i+1;
+            rows[i][1]="ID"+ Integer.toString(i+1);
+            rows[i][2]=d.getSpectra1().get(i).getSpectrumTitle();
+            rows[i][3]=d.getSpectra1().get(i).getPrecursor().getMz();
+            rows[i][4]=d.getSpectra1().get(i).getPrecursor().getPossibleCharges();
+            rows[i][5]=d.getSpectra1().get(i).getNPeaks();   
+            
+            tblModelTarget.addRow(rows[i]);
         }
+      
+
+    }
+
+    private void fillResultListControl(int target) {
+        
+        tblModelResult.setRowCount(0);
+        int i, pos;
+        double val = 0;
+        String result = res.get(target).toString();
+        result = result.substring(1, result.length() - 1);
+        String[] s = result.split(", ");
+
+       Object[][] rows=new Object[6][8];
+        for (i = 0; i < 6; i++) {
+          
+            val = Double.parseDouble(s[6 + i]);
+            pos = (int) val;  
+            rows[i][0]=i+1;
+            rows[i][1]="ID"+ Integer.toString(i);
+            rows[i][2]=d.getSpectra2().get(pos).getSpectrumTitle();
+            rows[i][3]=d.getSpectra2().get(pos).getPrecursor().getMz();
+            rows[i][4]=d.getSpectra2().get(pos).getPrecursor().getPossibleCharges();
+            rows[i][5]=d.getSpectra2().get(pos).getNPeaks();   
+            rows[i][6]=s[i];
+            rows[i][7]=(Double.parseDouble(s[i])/500)*100;  
+           tblModelResult.addRow(rows[i]);
+           
+          
+        }
+        
+         
     }
 
     @Override
@@ -512,8 +532,8 @@ public class MainFrameController implements UpdateListener {
         SwingUtilities.invokeLater(new Runnable() {
             public void run() {
                 int v = (int) (100 * PERCENT);
-                mainFrame.getPrgSearchProgress().setValue(v);
-                mainFrame.getlblProgress().setText(Integer.toString(v) + "%");
+                progressView.getPrgSearchProgress().setValue(v);
+                progressView.getlblProgress().setText(Integer.toString(v) + "%");
             }
         });
     }
@@ -525,19 +545,35 @@ public class MainFrameController implements UpdateListener {
             LOG.info("starting spectrum similarity score pipeline");
             d = new SpectralData();
 
-            mainFrame.getBtnStartSearching().setEnabled(false);
+            settingsView.getBtnStartSearching().setEnabled(false);
             //Read spectral data both target and db spectra
+
             ReadSpectralData r = new ReadSpectralData();
-            ArrayList<MSnSpectrum> specA = r.readSpectra(config.getTargetSpecFile());
+            //File targetSpectra = new File((ConfigHolder.getInstance().getString("target.spectra.path")));
+            //File dbSpectra = new File((ConfigHolder.getInstance().getString("db.spectra.path")));
+
+            ArrayList<MSnSpectrum> specA = r.readSpectra(cf_data.getTargetSpecFile());
 
             r = new ReadSpectralData();
-            ArrayList<MSnSpectrum> specB = r.readSpectra(config.getDBSpecFile());
+            ArrayList<MSnSpectrum> specB = r.readSpectra(cf_data.getDBSpecFile());
             d.setSpectra1(specA);
             d.setSpectra2(specB);
 
-            matching.InpArgs(Integer.toString(config.getMsRobinOption()), Integer.toString(config.getIntensityOption()), Double.toString(config.getfragTol()));
+//            Thread readerThread = new Thread(new Runnable() {
+//                @Override
+//                public void run() {
+//
+//                    while (d.getSpectra1() == null || d.getSpectra2() == null) {
+//                    }
+//
+//                }
+//            });
+//
+//            readerThread.start();
+//            readerThread.join();
+            matching.InpArgs(Integer.toString(cf_data.getMsRobinOption()), Integer.toString(cf_data.getIntensityOption()), Double.toString(cf_data.getfragTol()));
             res = new ArrayList<>();
-            res = matching.compare(specA, specB);
+            res = matching.compare(d.getSpectra1(), d.getSpectra2(), LOG);
 
             return null;
         }
@@ -545,15 +581,16 @@ public class MainFrameController implements UpdateListener {
         @Override
         protected void done() {
             try {
-
-                Thread.sleep(1);
-                LOG.info("finished spectrum similarity");
-                mainFrame.getPrgSearchProgress().setValue(100);
-                mainFrame.getlblProgress().setText("100%");
+                LOG.info("Spectrum Similarity Comparison Completed");
+                progressView.getPrgSearchProgress().setValue(100);
+                progressView.getlblProgress().setText("100%");
                 //Displaying Result Log
                 if (res != null && res.size() > 0) {
-                    fillTargetSpectrumList();
-                    displayResult(0);
+
+                    resultView.setVisible(true);
+                    fillTargetListControl();
+                    fillResultListControl(0);
+                    displayResult();
                     Iterator itr = res.iterator();
                     while (itr.hasNext()) {
                         LOG.info("Comparison Result: " + itr.next().toString());
@@ -565,7 +602,8 @@ public class MainFrameController implements UpdateListener {
                 }
 
                 //Graphical Result for selected target spectrum
-                mainFrame.getBtnStartSearching().setEnabled(true);
+                settingsView.getBtnStartSearching().setEnabled(true);
+            
                 get();
 
             } catch (InterruptedException | ExecutionException ex) {

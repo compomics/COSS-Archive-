@@ -1,6 +1,6 @@
 package com.compomics.coss.Controller;
 
-import com.compomics.coss.View.MainFrame;
+import com.compomics.coss.View.ProgressView;
 import javax.swing.SwingUtilities;
 import org.apache.log4j.WriterAppender;
 import org.apache.log4j.spi.LoggingEvent;
@@ -15,9 +15,9 @@ public class LogTextAreaAppender extends WriterAppender {
     /**
      * The dialog to log to.
      */
-    private MainFrame frm;
+    private ProgressView frm;
 
-    public void setLogArea(MainFrame frame) {
+    public void setLogArea(ProgressView frame) {
         this.frm = frame;
     }
 
@@ -28,6 +28,7 @@ public class LogTextAreaAppender extends WriterAppender {
         SwingUtilities.invokeLater(new Runnable() {
             @Override
             public void run() {
+                
                 frm.gettxtLog().append(message);
                 //repaint view
                 frm.validate();

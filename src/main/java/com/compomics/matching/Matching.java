@@ -28,7 +28,7 @@ public abstract class Matching {
     
    public abstract void InpArgs(java.lang.String ... args);
 
-    public abstract ArrayList compare(ArrayList<MSnSpectrum> speca, ArrayList<MSnSpectrum> specb);
+    public abstract ArrayList compare(ArrayList<MSnSpectrum> speca, ArrayList<MSnSpectrum> specb,  org.apache.log4j.Logger log);
     
     
     

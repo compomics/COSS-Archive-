@@ -5,28 +5,30 @@
  */
 package com.compomics.coss.Model;
 
-import java.io.File;
 
+import java.io.File;
 /**
  *
  * @author Genet
  */
 public class ConfigData {
-
+    
     File targetSpecFile;
     File dbSpecFile;
+    String outputPath;
+    
     double precTol = 0;
     double fragTol = 0.5;
     String MsRobinOptn = "";
-    int MSRobinOption; // 0-sqrt(Intensities), 1-Intensities
-    int intensityOption; // 0-Summed Up 1-Multiply intensities   
+    int MSRobinOption = 0; // 0-sqrt(Intensities), 1-Intensities
+    int intensityOption = 0; // 0-Summed Up 1-Multiply intensities   
     int maxPrecursorCharge;
-    String matchingAlgorithm;
+    int matchingAlgorithm;
    
 
     
     
-     public int geMaxPrecursorCharg() {
+     public int getMaxPrecursorCharg() {
         return this.maxPrecursorCharge;
     }
     
@@ -34,14 +36,21 @@ public class ConfigData {
         this.maxPrecursorCharge=maxPrecCharge;
     }
     
-     public String getMatchingAlgorithm() {
+     public int getMatchingAlgorithm() {
         return this.matchingAlgorithm;
     }
     
-    public void setMatchingAlgorithm(String matchAlgorithm) {
+    public void setMatchingAlgorithm(int matchAlgorithm) {
         this.matchingAlgorithm=matchAlgorithm;
     }
-        
+       
+    public String getOutputFilePath() {
+        return this.outputPath;
+    }
+
+    public void setOutputFilePath(String filename) {
+        this.outputPath=filename;
+    }
     
     public File getTargetSpecFile() {
         return this.targetSpecFile;
@@ -90,4 +99,6 @@ public class ConfigData {
     public double getfragTol() {
         return this.fragTol;
     }
+
+    
 }
