@@ -5,6 +5,7 @@
  */
 package com.compomics.coss.View;
 
+import java.awt.Toolkit;
 import javax.swing.JLabel;
 import javax.swing.JProgressBar;
 import javax.swing.JTextArea;
@@ -20,6 +21,8 @@ public class ProgressView extends javax.swing.JFrame {
      */
     public ProgressView() {
         initComponents();
+        this.setTitle("COSS - Progress");
+        this.setIconImage(Toolkit.getDefaultToolkit().getImage("src/main/resources/similarityIcon.png"));
     }
     
      public JTextArea gettxtLog()

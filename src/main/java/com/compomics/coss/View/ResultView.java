@@ -1,5 +1,6 @@
 package com.compomics.coss.View;
 
+import java.awt.Toolkit;
 import javax.swing.JList;
 import javax.swing.JMenuItem;
 import javax.swing.JPanel;
@@ -22,6 +23,8 @@ public class ResultView extends javax.swing.JFrame {
      */
     public ResultView() {
         initComponents();
+        this.setTitle("COSS - Result");
+        this.setIconImage(Toolkit.getDefaultToolkit().getImage("src/main/resources/similarityIcon.png"));
     }
 
        public JTable getTblTargetSpec()

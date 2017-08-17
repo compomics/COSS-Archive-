@@ -5,6 +5,7 @@
  */
 package com.compomics.coss.View;
 
+import java.awt.Toolkit;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComboBox;
@@ -22,6 +23,8 @@ public class SettingsView extends javax.swing.JFrame {
      */
     public SettingsView() {
         initComponents();
+        this.setTitle("COSS - Settings");
+        this.setIconImage(Toolkit.getDefaultToolkit().getImage("src/main/resources/similarityIcon.png"));
     }
     
     public JButton getBtnSave(){

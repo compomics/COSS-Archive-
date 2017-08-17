@@ -42,8 +42,10 @@ import javax.swing.event.ListSelectionEvent;
 import javax.swing.event.ListSelectionListener;
 import com.compomics.matching.Matching;
 import com.compomics.matching.UseMsRoben;
+import java.awt.Image;
 import javax.swing.table.DefaultTableModel;
 import org.jfree.util.Log;
+import javax.swing.ImageIcon;
 
 /**
  *
@@ -97,8 +99,7 @@ public class MainFrameController implements UpdateListener {
         fileChooser.setFileSelectionMode(JFileChooser.FILES_ONLY);
         fileChooser.setAcceptAllFileFilterUsed(false); 
         
-        
-
+    
         settingsView.getTxtTargetSpectra().setText("D:/specA/SpecA.msp");
         settingsView.getTxtDBSpectra().setText("D:/specB/SpecB.msp");
 
@@ -476,18 +477,26 @@ public class MainFrameController implements UpdateListener {
     private void fillTargetListControl() {
 
         tblModelTarget.setRowCount(0);
-        int i, size = d.getSpectra1().size();
-        //String name;
+        int i, targetsize = d.getSpectra1().size();
+        int numCharges;
+        String charges="";
 
-        Object[][] rows=new Object[size][6];
-        for (i = 0; i < size; i++) {
+        Object[][] rows=new Object[targetsize][6];
+        for (i = 0; i < targetsize; i++) {
            // name = d.getSpectra1().get(i).getSpectrumTitle();
 
             rows[i][0]=i+1;
             rows[i][1]="ID"+ Integer.toString(i+1);
             rows[i][2]=d.getSpectra1().get(i).getSpectrumTitle();
             rows[i][3]=d.getSpectra1().get(i).getPrecursor().getMz();
-            rows[i][4]=d.getSpectra1().get(i).getPrecursor().getPossibleCharges();
+            
+            charges="";
+            numCharges=d.getSpectra1().get(i).getPrecursor().getPossibleCharges().size();           
+            for(int j=0;j<numCharges;j++)
+            {
+              charges+=" " + d.getSpectra1().get(i).getPrecursor().getPossibleCharges().get(j).value;
+            }
+            rows[i][4]= charges;
             rows[i][5]=d.getSpectra1().get(i).getNPeaks();   
             
             tblModelTarget.addRow(rows[i]);
@@ -505,6 +514,8 @@ public class MainFrameController implements UpdateListener {
         result = result.substring(1, result.length() - 1);
         String[] s = result.split(", ");
 
+        int numCharges;
+        String charges="";
        Object[][] rows=new Object[6][8];
         for (i = 0; i < 6; i++) {
           
@@ -514,10 +525,21 @@ public class MainFrameController implements UpdateListener {
             rows[i][1]="ID"+ Integer.toString(i);
             rows[i][2]=d.getSpectra2().get(pos).getSpectrumTitle();
             rows[i][3]=d.getSpectra2().get(pos).getPrecursor().getMz();
-            rows[i][4]=d.getSpectra2().get(pos).getPrecursor().getPossibleCharges();
-            rows[i][5]=d.getSpectra2().get(pos).getNPeaks();   
-            rows[i][6]=s[i];
-            rows[i][7]=(Double.parseDouble(s[i])/500)*100;  
+            
+            charges="";
+            numCharges=d.getSpectra2().get(pos).getPrecursor().getPossibleCharges().size();           
+            for(int j=0;j<numCharges;j++)
+            {
+              charges+=" " + d.getSpectra2().get(pos).getPrecursor().getPossibleCharges().get(j).value;
+            }
+            
+            rows[i][4]=charges;
+            rows[i][5]=d.getSpectra2().get(pos).getNPeaks();  
+            double score=Double.parseDouble(s[i]);
+            rows[i][6]=Math.round(score);
+            
+            double conf=(score/400)*100;
+            rows[i][7]=Math.round(conf);  
            tblModelResult.addRow(rows[i]);
            
           
